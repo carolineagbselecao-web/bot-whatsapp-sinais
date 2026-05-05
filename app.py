@@ -451,19 +451,47 @@ BACBO_CLOSING = [
 PRIORITY_LEAGUES = [
     "FIFA World Cup",
     "UEFA Champions League",
-    "UEFA Europa League",
-    "UEFA Europa Conference League",
+    "UFC",
     "Copa Libertadores",
     "Copa do Brasil",
     "Brazilian Serie A",
-    "Brazilian Serie B",
     "English Premier League",
+    "ATP",
+    "WTA",
+    "Roland Garros",
+    "Wimbledon",
+    "US Open",
+    "Australian Open",
     "La Liga",
     "Bundesliga",
     "Serie A",
     "Ligue 1",
     "Copa America",
+    "UEFA Europa League",
     "CONMEBOL",
+]
+
+UFC_MARKETS = [
+    ("Resultado Final", "casa"),
+    ("Resultado Final", "fora"),
+    ("Resultado Final", "casa"),
+    ("Método de Vitória", "nocaute"),
+    ("Método de Vitória", "finalizacao"),
+    ("Vai ao Round 3+", "sim"),
+]
+
+UFC_METODOS = {
+    "nocaute": "Vitória por Nocaute/TKO",
+    "finalizacao": "Vitória por Finalização",
+}
+
+TENNIS_MARKETS = [
+    ("Resultado Final", "casa"),
+    ("Resultado Final", "fora"),
+    ("Resultado Final", "casa"),
+    ("Total de Sets", "mais"),
+    ("Total de Sets", "menos"),
+    ("Handicap de Games", "casa"),
 ]
 
 SPORTS_MARKETS = [
@@ -663,13 +691,26 @@ def build_roleta_message(plan_date, position):
 
 def fetch_todays_matches():
     today = today_str()
-    url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={today}&s=Soccer"
-    try:
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        return data.get("events") or []
-    except Exception:
-        return []
+    all_events = []
+    for sport in ["Soccer", "Fighting", "Tennis"]:
+        try:
+            url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={today}&s={sport}"
+            resp = requests.get(url, timeout=10)
+            events = resp.json().get("events") or []
+            all_events.extend(events)
+        except Exception:
+            pass
+    return all_events
+
+def detect_sport(event):
+    league = (event.get("strLeague") or "").lower()
+    sport = (event.get("strSport") or "").lower()
+    if "ufc" in league or "mma" in league or "fighting" in sport or "mixed martial" in league:
+        return "ufc"
+    if "tennis" in sport or "atp" in league or "wta" in league or "grand slam" in league or \
+       "roland" in league or "wimbledon" in league or "open" in league:
+        return "tennis"
+    return "football"
 
 def pick_best_match(events):
     if not events:
@@ -700,8 +741,9 @@ def build_sports_message(plan_date, position):
     if match:
         home = match.get("strHomeTeam", "Casa")
         away = match.get("strAwayTeam", "Visitante")
-        league = match.get("strLeague", "Futebol Internacional")
+        league = match.get("strLeague", "Internacional")
         time_utc = match.get("strTime", "")
+        sport_type = detect_sport(match)
 
         if time_utc:
             try:
@@ -714,43 +756,63 @@ def build_sports_message(plan_date, position):
             match_time = hora
 
         home_odds, draw_odds, away_odds = generate_odds(home, away, plan_date, position)
-
-        market_idx = int(hashlib.sha256((seed + "|market").encode()).hexdigest(), 16) % len(SPORTS_MARKETS)
-        market, side = SPORTS_MARKETS[market_idx]
-
         aviso_risco = ""
-        if market == "Resultado Final":
-            if side == "casa":
-                entry = f"{home} vence"
-                odd = f"{home_odds:.2f}"
+
+        if sport_type == "ufc":
+            emoji = "🥊"
+            titulo = "Sinal UFC/MMA"
+            market_idx = int(hashlib.sha256((seed + "|market").encode()).hexdigest(), 16) % len(UFC_MARKETS)
+            market, side = UFC_MARKETS[market_idx]
+            if market == "Resultado Final":
+                entry = f"{home} vence" if side == "casa" else f"{away} vence"
+                odd = f"{home_odds:.2f}" if side == "casa" else f"{away_odds:.2f}"
+            elif market == "Método de Vitória":
+                entry = UFC_METODOS[side]
+                odd = f"{round(2.20 + (int(seed[:4], 16) % 150) / 100, 2):.2f}"
             else:
-                entry = f"{away} vence"
-                odd = f"{away_odds:.2f}"
-        elif market == "Dupla Chance":
-            entry = f"{home} ou Empate"
-            odd = f"{round(home_odds * 0.65, 2):.2f}"
-        elif market == "Ambas Marcam":
-            entry = "Sim" if side == "sim" else "Não"
-            odd = f"{round(1.60 + (int(seed[:4], 16) % 40) / 100, 2):.2f}"
-        elif market == "Mais/Menos Gols":
-            if side == "mais":
-                entry = "Mais de 2.5 gols"
+                entry = "Sim — luta vai ao 3º round ou mais"
+                odd = f"{round(1.70 + (int(seed[:4], 16) % 60) / 100, 2):.2f}"
+
+        elif sport_type == "tennis":
+            emoji = "🎾"
+            titulo = "Sinal Tênis"
+            market_idx = int(hashlib.sha256((seed + "|market").encode()).hexdigest(), 16) % len(TENNIS_MARKETS)
+            market, side = TENNIS_MARKETS[market_idx]
+            if market == "Resultado Final":
+                entry = f"{home} vence" if side == "casa" else f"{away} vence"
+                odd = f"{home_odds:.2f}" if side == "casa" else f"{away_odds:.2f}"
+            elif market == "Total de Sets":
+                entry = "Mais de 2.5 sets" if side == "mais" else "Menos de 2.5 sets"
+                odd = f"{round(1.65 + (int(seed[:4], 16) % 50) / 100, 2):.2f}"
+            else:
+                entry = f"{home} -3.5 games (handicap)"
+                odd = f"{round(1.80 + (int(seed[:4], 16) % 70) / 100, 2):.2f}"
+
+        else:
+            emoji = "⚽"
+            titulo = "Sinal Esportes"
+            market_idx = int(hashlib.sha256((seed + "|market").encode()).hexdigest(), 16) % len(SPORTS_MARKETS)
+            market, side = SPORTS_MARKETS[market_idx]
+            if market == "Resultado Final":
+                entry = f"{home} vence" if side == "casa" else f"{away} vence"
+                odd = f"{home_odds:.2f}" if side == "casa" else f"{away_odds:.2f}"
+            elif market == "Dupla Chance":
+                entry = f"{home} ou Empate"
+                odd = f"{round(home_odds * 0.65, 2):.2f}"
+            elif market == "Ambas Marcam":
+                entry = "Sim" if side == "sim" else "Não"
+                odd = f"{round(1.60 + (int(seed[:4], 16) % 40) / 100, 2):.2f}"
+            elif market == "Mais/Menos Gols":
+                entry = "Mais de 2.5 gols" if side == "mais" else "Menos de 2.5 gols"
                 odd = f"{round(1.70 + (int(seed[:4], 16) % 50) / 100, 2):.2f}"
             else:
-                entry = "Menos de 2.5 gols"
-                odd = f"{round(1.55 + (int(seed[:4], 16) % 40) / 100, 2):.2f}"
-        else:
-            placar = choose_variant(PLACARES_FAVORITO if side == "favorito" else PLACARES_ZEBRA, seed + "|placar")
-            if side == "favorito":
-                entry = f"{home} {placar}"
-                odd = f"{round(4.50 + (int(seed[:4], 16) % 300) / 100, 2):.2f}"
-            else:
-                entry = f"{away} {placar.split('x')[1]}x{placar.split('x')[0]}"
-                odd = f"{round(7.00 + (int(seed[:4], 16) % 500) / 100, 2):.2f}"
-            aviso_risco = "\n⚡ Placar exato — odd alta, risco alto. Use no máx 1% da banca."
+                placar = choose_variant(PLACARES_FAVORITO if side == "favorito" else PLACARES_ZEBRA, seed + "|placar")
+                entry = f"{home} {placar}" if side == "favorito" else f"{away} {placar.split('x')[1]}x{placar.split('x')[0]}"
+                odd = f"{round(4.50 + (int(seed[:4], 16) % 300) / 100, 2):.2f}" if side == "favorito" else f"{round(7.00 + (int(seed[:4], 16) % 500) / 100, 2):.2f}"
+                aviso_risco = "\n⚡ Placar exato — odd alta, risco alto. Use no máx 1% da banca."
 
         return (
-            f"⚽ *Sinal Esportes*\n\n"
+            f"{emoji} *{titulo}*\n\n"
             f"🏆 {league}\n"
             f"🆚 *{home}* x *{away}*\n"
             f"🕐 {match_time} (horário de Brasília)\n\n"
