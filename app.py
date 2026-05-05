@@ -495,6 +495,7 @@ def init_db():
     conn = db()
     cur = conn.cursor()
 
+    # Tabela de jogos compartilhada com o bot Telegram (mesmos dados)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS games (
             id SERIAL PRIMARY KEY,
@@ -507,8 +508,9 @@ def init_db():
         )
     """)
 
+    # Tabela exclusiva do bot WhatsApp (prefixo wa_ evita conflito)
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS daily_plan (
+        CREATE TABLE IF NOT EXISTS wa_daily_plan (
             id SERIAL PRIMARY KEY,
             room TEXT NOT NULL,
             plan_date TEXT NOT NULL,
@@ -570,7 +572,7 @@ def ensure_daily_plan(room_name, day_str):
     conn = db()
     cur = conn.cursor()
     cur.execute(
-        "SELECT COUNT(*) AS total FROM daily_plan WHERE room = %s AND plan_date = %s",
+        "SELECT COUNT(*) AS total FROM wa_daily_plan WHERE room = %s AND plan_date = %s",
         (room_name, day_str)
     )
     if cur.fetchone()["total"] > 0:
@@ -607,7 +609,7 @@ def ensure_daily_plan(room_name, day_str):
         for position, game_row in enumerate(selected, start=1):
             send_at = slots[position - 1].strftime("%Y-%m-%d %H:%M:%S")
             cur.execute("""
-                INSERT INTO daily_plan (room, plan_date, position, game_id, send_at)
+                INSERT INTO wa_daily_plan (room, plan_date, position, game_id, send_at)
                 VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT(room, plan_date, position) DO NOTHING
             """, (room_name, day_str, position, game_row["id"], send_at))
@@ -615,7 +617,7 @@ def ensure_daily_plan(room_name, day_str):
         for position, slot_dt in enumerate(slots, start=1):
             send_at = slot_dt.strftime("%Y-%m-%d %H:%M:%S")
             cur.execute("""
-                INSERT INTO daily_plan (room, plan_date, position, game_id, send_at)
+                INSERT INTO wa_daily_plan (room, plan_date, position, game_id, send_at)
                 VALUES (%s, %s, %s, NULL, %s)
                 ON CONFLICT(room, plan_date, position) DO NOTHING
             """, (room_name, day_str, position, send_at))
@@ -641,7 +643,7 @@ def get_due_items(room_name, limit=1):
             SELECT dp.id, dp.room, dp.plan_date, dp.position, dp.send_at,
                    g.id AS game_id, g.name AS game_name, g.provider,
                    g.rtp, g.emoji, g.game_type
-            FROM daily_plan dp
+            FROM wa_daily_plan dp
             JOIN games g ON g.id = dp.game_id
             WHERE dp.room = %s AND dp.plan_date = %s
               AND dp.sent = 0
@@ -652,7 +654,7 @@ def get_due_items(room_name, limit=1):
     else:
         cur.execute("""
             SELECT id, room, plan_date, position, send_at
-            FROM daily_plan
+            FROM wa_daily_plan
             WHERE room = %s AND plan_date = %s
               AND sent = 0
               AND send_at <= %s AND send_at >= %s
@@ -672,7 +674,7 @@ def try_lock(item_id):
     cur = conn.cursor()
     try:
         cur.execute("""
-            UPDATE daily_plan SET locked_at = %s
+            UPDATE wa_daily_plan SET locked_at = %s
             WHERE id = %s AND sent = 0 AND (locked_at = '' OR locked_at <= %s)
         """, (now_str, item_id, lock_cutoff))
         conn.commit()
@@ -688,7 +690,7 @@ def mark_sent(item_id, status):
     conn = db()
     cur = conn.cursor()
     cur.execute("""
-        UPDATE daily_plan SET sent = 1, sent_at = %s, wa_status = %s, locked_at = ''
+        UPDATE wa_daily_plan SET sent = 1, sent_at = %s, wa_status = %s, locked_at = ''
         WHERE id = %s
     """, (now_br().strftime("%Y-%m-%d %H:%M:%S"), status, item_id))
     conn.commit()
@@ -829,7 +831,7 @@ def status():
                    COUNT(*) AS total,
                    SUM(sent) AS enviados,
                    SUM(CASE WHEN wa_status = 'erro' THEN 1 ELSE 0 END) AS erros
-            FROM daily_plan
+            FROM wa_daily_plan
             WHERE plan_date = %s
             GROUP BY room
         """, (today_str(),))
