@@ -41,6 +41,12 @@ ROOMS = {
         "min_interval": 8,
         "max_interval": 12,
     },
+    "sports": {
+        "jid": os.getenv("SPORTS_JID", "120363428850704241@g.us"),
+        "windows": [("09:00", "09:25"), ("14:00", "14:25"), ("19:00", "19:25")],
+        "min_interval": 20,
+        "max_interval": 25,
+    },
 }
 
 # ============================================================
@@ -428,6 +434,196 @@ BACBO_CLOSING = [
 ]
 
 # ============================================================
+# ESPORTES — LIGAS PRIORITÁRIAS
+# ============================================================
+PRIORITY_LEAGUES = [
+    "FIFA World Cup",
+    "UEFA Champions League",
+    "UEFA Europa League",
+    "UEFA Europa Conference League",
+    "Copa Libertadores",
+    "Copa do Brasil",
+    "Brazilian Serie A",
+    "Brazilian Serie B",
+    "English Premier League",
+    "La Liga",
+    "Bundesliga",
+    "Serie A",
+    "Ligue 1",
+    "Copa America",
+    "CONMEBOL",
+]
+
+SPORTS_MARKETS = [
+    ("Resultado Final", "casa"),
+    ("Resultado Final", "fora"),
+    ("Dupla Chance", "casa_empate"),
+    ("Ambas Marcam", "sim"),
+    ("Resultado Final", "casa"),
+    ("Resultado Final", "fora"),
+]
+
+SPORTS_CLOSING = [
+    "⚠️ Analise antes de apostar. Gestão é o que separa o lucro do prejuízo.",
+    "⚠️ Jogue com responsabilidade. Aposte só o que pode perder.",
+    "⚠️ Odd sugerida é referência. Verifique na sua plataforma.",
+    "⚠️ Gestão primeiro. Nunca ultrapasse 5% da banca por entrada.",
+]
+
+COPA_2026_TIPS = [
+    (
+        "🏆 *Copa do Mundo 2026 — Preparação*\n\n"
+        "📅 Data: 11 junho – 19 julho de 2026\n"
+        "🌎 Sede: EUA, México e Canadá\n"
+        "⚽ 48 seleções pela primeira vez na história\n\n"
+        "📌 *Mercado mais lucrativo na Copa:*\n"
+        "Resultado ao Vivo (In-Play) — as odds mudam em tempo real.\n"
+        "Quem lê o jogo e entra na hora certa lucra mais.\n\n"
+        "💡 Dica: Acompanhe aqui os jogos do dia para treinar o olho antes da Copa."
+    ),
+    (
+        "🇧🇷 *Brasil na Copa 2026*\n\n"
+        "A Seleção chega como uma das favoritas ao título.\n"
+        "Odd atual para o Brasil vencer a Copa: entre 5.00 e 7.00.\n\n"
+        "📌 *Como apostar na seleção com segurança:*\n"
+        "• Aposte no Brasil em mercados de fase de grupos (menor risco)\n"
+        "• Evite apostar no placar exato — volatilidade alta\n"
+        "• Mercado Dupla Chance (Brasil ou Empate) paga menos mas protege\n\n"
+        "💡 Vamos acompanhar os jogos preparatórios da Seleção aqui."
+    ),
+    (
+        "📊 *Gestão de Banca para Copa 2026*\n\n"
+        "A Copa tem 64 jogos ao longo de 39 dias.\n"
+        "É uma maratona, não uma corrida.\n\n"
+        "📌 *Regras de ouro para a Copa:*\n"
+        "• Defina uma banca exclusiva para a Copa\n"
+        "• Máximo 3% por entrada nos grupos\n"
+        "• Máximo 5% a partir das quartas\n"
+        "• Stop loss diário: -15% da banca\n"
+        "• Stop win diário: +25% — pare quando atingir\n\n"
+        "💡 Quem respeita a banca chega às finais com saldo positivo."
+    ),
+    (
+        "🎯 *Mercados para dominar antes da Copa*\n\n"
+        "Os 5 mercados mais populares e rentáveis:\n\n"
+        "1️⃣ *Resultado Final (1X2)* — mais simples\n"
+        "2️⃣ *Dupla Chance* — cobre 2 dos 3 resultados\n"
+        "3️⃣ *Ambas Marcam (BTTS)* — independe de quem vence\n"
+        "4️⃣ *Total de Gols* — acima ou abaixo de 2.5\n"
+        "5️⃣ *Handicap Asiático* — equilibra jogos desiguais\n\n"
+        "💡 Treino começa agora. Acompanha os sinais diários aqui."
+    ),
+    (
+        "⚡ *Favoritos para a Copa 2026*\n\n"
+        "🥇 França — elenco mais completo do mundo\n"
+        "🥈 Inglaterra — geração Bellingham/Kane no auge\n"
+        "🥉 Brasil — Vini Jr e companhia com sede de título\n"
+        "4️⃣ Argentina — campeã atual, Messi pode se despedir\n"
+        "5️⃣ Espanha — jovens talentos em ascensão\n\n"
+        "📌 Odd média para esses 5 vencerem a Copa: 3.50 a 8.00\n\n"
+        "💡 Atenção às seleções zebra: Portugal, Alemanha e Uruguai."
+    ),
+    (
+        "🔍 *Como ler uma odd antes de apostar*\n\n"
+        "Odd 1.85 no Brasil → para cada R$100 apostados, recebe R$185\n"
+        "Lucro real: R$85\n\n"
+        "📌 *Fórmula da probabilidade implícita:*\n"
+        "1 ÷ odd = probabilidade\n"
+        "Odd 2.00 → 50% de chance\n"
+        "Odd 3.00 → 33% de chance\n"
+        "Odd 1.50 → 67% de chance\n\n"
+        "💡 Se você acha que o Brasil tem 70% de chance e a odd é 1.85 (54%), "
+        "existe valor nessa aposta."
+    ),
+]
+
+def fetch_todays_matches():
+    today = today_str()
+    url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={today}&s=Soccer"
+    try:
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        return data.get("events") or []
+    except Exception:
+        return []
+
+def pick_best_match(events):
+    if not events:
+        return None
+    for league_priority in PRIORITY_LEAGUES:
+        for event in events:
+            league = event.get("strLeague", "")
+            if league_priority.lower() in league.lower():
+                return event
+    return events[0] if events else None
+
+def generate_odds(home_team, away_team, plan_date, position):
+    seed = f"{home_team}|{away_team}|{plan_date}|{position}"
+    n = int(hashlib.sha256(seed.encode()).hexdigest(), 16)
+    home_odds = round(1.50 + (n % 130) / 100, 2)
+    away_odds = round(1.70 + ((n >> 4) % 160) / 100, 2)
+    draw_odds = round(2.80 + ((n >> 8) % 70) / 100, 2)
+    return home_odds, draw_odds, away_odds
+
+def build_sports_message(plan_date, position):
+    seed = f"{plan_date}|sports|{position}"
+    closing = choose_variant(SPORTS_CLOSING, seed + "|closing")
+    hora = now_br().strftime("%H:%M")
+
+    events = fetch_todays_matches()
+    match = pick_best_match(events)
+
+    if match:
+        home = match.get("strHomeTeam", "Casa")
+        away = match.get("strAwayTeam", "Visitante")
+        league = match.get("strLeague", "Futebol Internacional")
+        time_utc = match.get("strTime", "")
+
+        if time_utc:
+            try:
+                h, m = time_utc.replace(".", ":").split(":")[:2]
+                br_h = (int(h) - 3) % 24
+                match_time = f"{br_h:02d}:{m}"
+            except Exception:
+                match_time = hora
+        else:
+            match_time = hora
+
+        home_odds, draw_odds, away_odds = generate_odds(home, away, plan_date, position)
+
+        market_idx = int(hashlib.sha256((seed + "|market").encode()).hexdigest(), 16) % len(SPORTS_MARKETS)
+        market, side = SPORTS_MARKETS[market_idx]
+
+        if market == "Resultado Final":
+            if side == "casa":
+                entry = f"{home} vence"
+                odd = f"{home_odds:.2f}"
+            else:
+                entry = f"{away} vence"
+                odd = f"{away_odds:.2f}"
+        elif market == "Dupla Chance":
+            entry = f"{home} ou Empate"
+            odd = f"{round(home_odds * 0.65, 2):.2f}"
+        else:
+            entry = "Sim"
+            odd = f"{round(1.60 + (int(seed[:4], 16) % 40) / 100, 2):.2f}"
+
+        return (
+            f"⚽ *Sinal Esportes*\n\n"
+            f"🏆 {league}\n"
+            f"🆚 *{home}* x *{away}*\n"
+            f"🕐 {match_time} (horário de Brasília)\n\n"
+            f"📌 Mercado: {market}\n"
+            f"🎯 Entrada: {entry}\n"
+            f"📊 Odd sugerida: *{odd}* (Betano / Pixbet)\n"
+            f"💰 Gestão: 3% da banca\n\n"
+            f"{closing}"
+        )
+    else:
+        tip = choose_variant(COPA_2026_TIPS, seed + "|copa")
+        return tip + f"\n\n{closing}"
+
+# ============================================================
 # UTILITÁRIOS
 # ============================================================
 def now_br():
@@ -798,8 +994,10 @@ def scheduler_loop():
                             msg = build_slots_message(item["plan_date"], item["position"], item)
                         elif room_name == "aviator":
                             msg = build_aviator_message(item["plan_date"], item["position"])
-                        else:
+                        elif room_name == "bacbo":
                             msg = build_bacbo_message(item["plan_date"], item["position"])
+                        else:
+                            msg = build_sports_message(item["plan_date"], item["position"])
 
                         ok, status = evolution_send(room_cfg["jid"], msg)
                         mark_sent(item["id"], "ok" if ok else "erro")
