@@ -1136,6 +1136,15 @@ def scheduler_loop():
 # ============================================================
 app = Flask(__name__)
 
+ROOM_META = {
+    "slots":   {"emoji": "🎰", "label": "Slots",    "janela": "00h – 23h59"},
+    "aviator": {"emoji": "✈️", "label": "Aviator",  "janela": "10h / 15h / 20h"},
+    "bacbo":   {"emoji": "🎲", "label": "BacBo",    "janela": "10h / 14h / 20h"},
+    "sports":  {"emoji": "⚽", "label": "Esportes", "janela": "9h / 14h / 19h"},
+    "mines":   {"emoji": "💣", "label": "Mines",    "janela": "10h / 14h / 19h"},
+    "roleta":  {"emoji": "🎡", "label": "Roleta",   "janela": "14h / 19h"},
+}
+
 @app.route("/")
 def health():
     return "Bot WhatsApp Sinais — Rainha Games OK", 200
@@ -1157,10 +1166,107 @@ def status():
         rows = cur.fetchall()
         cur.close()
         conn.close()
-        result = {r["room"]: {"total": r["total"], "enviados": int(r["enviados"] or 0), "erros": int(r["erros"] or 0)} for r in rows}
-        return jsonify({"date": today_str(), "rooms": result})
+        data = {r["room"]: {"total": r["total"], "enviados": int(r["enviados"] or 0), "erros": int(r["erros"] or 0)} for r in rows}
+
+        now_str = now_br().strftime("%d/%m/%Y %H:%M")
+
+        cards = ""
+        for room, meta in ROOM_META.items():
+            d = data.get(room, {"total": 0, "enviados": 0, "erros": 0})
+            total = d["total"]
+            enviados = d["enviados"]
+            erros = d["erros"]
+            pct = round((enviados / total * 100) if total > 0 else 0)
+            status_color = "#22c55e" if erros == 0 else "#ef4444"
+            status_text = "Online" if erros == 0 else f"{erros} erro(s)"
+            cards += f"""
+            <div class="card">
+                <div class="card-header">
+                    <span class="emoji">{meta['emoji']}</span>
+                    <div>
+                        <div class="room-name">{meta['label']}</div>
+                        <div class="janela">{meta['janela']}</div>
+                    </div>
+                    <span class="badge" style="background:{status_color}">{status_text}</span>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-val">{enviados}</div>
+                        <div class="stat-lbl">Enviados</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-val">{total}</div>
+                        <div class="stat-lbl">Planejados</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-val">{pct}%</div>
+                        <div class="stat-lbl">Progresso</div>
+                    </div>
+                </div>
+                <div class="bar-bg">
+                    <div class="bar-fill" style="width:{pct}%"></div>
+                </div>
+            </div>"""
+
+        total_enviados = sum(d.get("enviados", 0) for d in data.values())
+        total_planejados = sum(d.get("total", 0) for d in data.values())
+        total_erros = sum(d.get("erros", 0) for d in data.values())
+
+        html = f"""<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rainha Games — Monitor de Sinais</title>
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ background:#0B0B0F; color:#fff; font-family:'Segoe UI',sans-serif; min-height:100vh; padding:24px 16px; }}
+  .header {{ text-align:center; margin-bottom:32px; }}
+  .crown {{ font-size:48px; }}
+  h1 {{ font-size:24px; color:#D4AF37; font-weight:700; margin:8px 0 4px; }}
+  .subtitle {{ color:#888; font-size:13px; }}
+  .summary {{ display:flex; gap:12px; justify-content:center; margin-bottom:28px; flex-wrap:wrap; }}
+  .sum-box {{ background:#1a1a24; border:1px solid #2a2a3a; border-radius:12px; padding:14px 24px; text-align:center; min-width:120px; }}
+  .sum-val {{ font-size:28px; font-weight:700; color:#D4AF37; }}
+  .sum-lbl {{ font-size:12px; color:#888; margin-top:2px; }}
+  .grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; max-width:1000px; margin:0 auto; }}
+  .card {{ background:#1a1a24; border:1px solid #2a2a3a; border-radius:16px; padding:20px; }}
+  .card-header {{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }}
+  .emoji {{ font-size:32px; }}
+  .room-name {{ font-size:16px; font-weight:700; color:#fff; }}
+  .janela {{ font-size:11px; color:#888; margin-top:2px; }}
+  .badge {{ margin-left:auto; font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; color:#fff; white-space:nowrap; }}
+  .stats {{ display:flex; gap:8px; margin-bottom:12px; }}
+  .stat {{ flex:1; background:#0B0B0F; border-radius:10px; padding:10px; text-align:center; }}
+  .stat-val {{ font-size:20px; font-weight:700; color:#D4AF37; }}
+  .stat-lbl {{ font-size:10px; color:#888; margin-top:2px; }}
+  .bar-bg {{ background:#0B0B0F; border-radius:999px; height:6px; overflow:hidden; }}
+  .bar-fill {{ background:linear-gradient(90deg,#B3001B,#D4AF37); height:100%; border-radius:999px; transition:width .5s; }}
+  .footer {{ text-align:center; margin-top:32px; color:#555; font-size:12px; }}
+  .dot {{ display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; margin-right:6px; animation:pulse 2s infinite; }}
+  @keyframes pulse {{ 0%,100%{{opacity:1}} 50%{{opacity:.4}} }}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="crown">👑</div>
+  <h1>RAINHA GAMES</h1>
+  <div class="subtitle"><span class="dot"></span>Monitor de Sinais — {now_str}</div>
+</div>
+<div class="summary">
+  <div class="sum-box"><div class="sum-val">{total_enviados}</div><div class="sum-lbl">Sinais enviados hoje</div></div>
+  <div class="sum-box"><div class="sum-val">{total_planejados}</div><div class="sum-lbl">Planejados hoje</div></div>
+  <div class="sum-box"><div class="sum-val" style="color:{'#22c55e' if total_erros==0 else '#ef4444'}">{total_erros}</div><div class="sum-lbl">Erros</div></div>
+  <div class="sum-box"><div class="sum-val">{len(ROOM_META)}</div><div class="sum-lbl">Salas ativas</div></div>
+</div>
+<div class="grid">{cards}</div>
+<div class="footer">Atualiza automaticamente — recarregue a página para ver o status mais recente</div>
+<script>setTimeout(()=>location.reload(), 60000)</script>
+</body>
+</html>"""
+        return html, 200, {"Content-Type": "text/html; charset=utf-8"}
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return f"<h1 style='color:red'>Erro: {e}</h1>", 500
 
 _started = False
 
