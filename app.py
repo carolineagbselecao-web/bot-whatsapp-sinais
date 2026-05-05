@@ -469,11 +469,18 @@ PRIORITY_LEAGUES = [
 SPORTS_MARKETS = [
     ("Resultado Final", "casa"),
     ("Resultado Final", "fora"),
+    ("Resultado Final", "casa"),
     ("Dupla Chance", "casa_empate"),
     ("Ambas Marcam", "sim"),
-    ("Resultado Final", "casa"),
-    ("Resultado Final", "fora"),
+    ("Ambas Marcam", "nao"),
+    ("Mais/Menos Gols", "mais"),
+    ("Mais/Menos Gols", "menos"),
+    ("Placar Exato", "favorito"),
+    ("Placar Exato", "zebra"),
 ]
+
+PLACARES_FAVORITO = ["1x0", "2x0", "2x1", "3x1", "3x0"]
+PLACARES_ZEBRA    = ["0x1", "1x2", "0x2", "1x3", "0x0"]
 
 SPORTS_CLOSING = [
     "⚠️ Analise antes de apostar. Gestão é o que separa o lucro do prejuízo.",
@@ -711,6 +718,7 @@ def build_sports_message(plan_date, position):
         market_idx = int(hashlib.sha256((seed + "|market").encode()).hexdigest(), 16) % len(SPORTS_MARKETS)
         market, side = SPORTS_MARKETS[market_idx]
 
+        aviso_risco = ""
         if market == "Resultado Final":
             if side == "casa":
                 entry = f"{home} vence"
@@ -721,9 +729,25 @@ def build_sports_message(plan_date, position):
         elif market == "Dupla Chance":
             entry = f"{home} ou Empate"
             odd = f"{round(home_odds * 0.65, 2):.2f}"
-        else:
-            entry = "Sim"
+        elif market == "Ambas Marcam":
+            entry = "Sim" if side == "sim" else "Não"
             odd = f"{round(1.60 + (int(seed[:4], 16) % 40) / 100, 2):.2f}"
+        elif market == "Mais/Menos Gols":
+            if side == "mais":
+                entry = "Mais de 2.5 gols"
+                odd = f"{round(1.70 + (int(seed[:4], 16) % 50) / 100, 2):.2f}"
+            else:
+                entry = "Menos de 2.5 gols"
+                odd = f"{round(1.55 + (int(seed[:4], 16) % 40) / 100, 2):.2f}"
+        else:
+            placar = choose_variant(PLACARES_FAVORITO if side == "favorito" else PLACARES_ZEBRA, seed + "|placar")
+            if side == "favorito":
+                entry = f"{home} {placar}"
+                odd = f"{round(4.50 + (int(seed[:4], 16) % 300) / 100, 2):.2f}"
+            else:
+                entry = f"{away} {placar.split('x')[1]}x{placar.split('x')[0]}"
+                odd = f"{round(7.00 + (int(seed[:4], 16) % 500) / 100, 2):.2f}"
+            aviso_risco = "\n⚡ Placar exato — odd alta, risco alto. Use no máx 1% da banca."
 
         return (
             f"⚽ *Sinal Esportes*\n\n"
@@ -733,7 +757,7 @@ def build_sports_message(plan_date, position):
             f"📌 Mercado: {market}\n"
             f"🎯 Entrada: {entry}\n"
             f"📊 Odd de referência: *{odd}*\n"
-            f"💰 Gestão: 3% da banca\n\n"
+            f"💰 Gestão: 3% da banca{aviso_risco}\n\n"
             f"{closing}"
         )
     else:
