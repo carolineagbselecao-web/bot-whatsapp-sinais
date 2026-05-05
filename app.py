@@ -694,18 +694,24 @@ def build_roleta_message(plan_date, position):
         f"{closing}"
     )
 
-def fetch_todays_matches():
-    today = today_str()
+def fetch_matches_for_date(date_str):
     all_events = []
     for sport in ["Soccer", "Fighting", "Tennis"]:
         try:
-            url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={today}&s={sport}"
+            url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={date_str}&s={sport}"
             resp = requests.get(url, timeout=10)
             events = resp.json().get("events") or []
             all_events.extend(events)
         except Exception:
             pass
     return all_events
+
+def fetch_todays_matches():
+    return fetch_matches_for_date(today_str())
+
+def fetch_tomorrows_matches():
+    tomorrow = (now_br().date() + timedelta(days=1)).strftime("%Y-%m-%d")
+    return fetch_matches_for_date(tomorrow)
 
 def detect_sport(event):
     league = (event.get("strLeague") or "").lower()
@@ -740,14 +746,23 @@ def build_sports_message(plan_date, position):
     closing = choose_variant(SPORTS_CLOSING, seed + "|closing")
     hora = now_br().strftime("%H:%M")
 
-    all_events = fetch_todays_matches()
-    # Ordenar por prioridade e ciclar pelo position
+    hora_atual = now_br().hour
+    is_preview = hora_atual >= 19
+
+    if is_preview:
+        raw_events = fetch_tomorrows_matches()
+        amanha_str = (now_br().date() + timedelta(days=1)).strftime("%d/%m")
+        label_data = f"📅 AMANHÃ ({amanha_str})"
+    else:
+        raw_events = fetch_todays_matches()
+        label_data = f"📅 HOJE ({now_br().strftime('%d/%m')})"
+
     all_events_sorted = []
     for lp in PRIORITY_LEAGUES:
-        for e in all_events:
+        for e in raw_events:
             if lp.lower() in (e.get("strLeague") or "").lower() and e not in all_events_sorted:
                 all_events_sorted.append(e)
-    for e in all_events:
+    for e in raw_events:
         if e not in all_events_sorted:
             all_events_sorted.append(e)
 
@@ -826,8 +841,12 @@ def build_sports_message(plan_date, position):
                 odd = f"{round(4.50 + (int(seed[:4], 16) % 300) / 100, 2):.2f}" if side == "favorito" else f"{round(7.00 + (int(seed[:4], 16) % 500) / 100, 2):.2f}"
                 aviso_risco = "\n⚡ Placar exato — odd alta, risco alto. Use no máx 1% da banca."
 
+        preview_header = f"🔮 *PRÉVIA — aposte com antecedência*\n\n" if is_preview else ""
+
         return (
+            f"{preview_header}"
             f"{emoji} *{titulo}*\n\n"
+            f"{label_data}\n"
             f"🏆 {league}\n"
             f"🆚 *{home}* x *{away}*\n"
             f"🕐 {match_time} (horário de Brasília)\n\n"
