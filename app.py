@@ -1181,7 +1181,7 @@ def rebuild_room(room):
         day = today_str()
         conn = db()
         cur = conn.cursor()
-        cur.execute("DELETE FROM wa_daily_plan WHERE room = %s AND plan_date = %s AND sent = 0", (room, day))
+        cur.execute("DELETE FROM wa_daily_plan WHERE room = %s AND plan_date = %s", (room, day))
         deleted = cur.rowcount
         conn.commit()
         cur.close()
