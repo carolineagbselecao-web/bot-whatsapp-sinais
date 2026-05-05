@@ -47,6 +47,18 @@ ROOMS = {
         "min_interval": 20,
         "max_interval": 25,
     },
+    "mines": {
+        "jid": os.getenv("MINES_JID", "120363425225665418@g.us"),
+        "windows": [("10:00", "12:00"), ("14:00", "17:00"), ("19:00", "23:00")],
+        "min_interval": 8,
+        "max_interval": 14,
+    },
+    "roleta": {
+        "jid": os.getenv("ROLETA_JID", "120363427358245251@g.us"),
+        "windows": [("14:00", "17:00"), ("19:00", "23:00")],
+        "min_interval": 10,
+        "max_interval": 15,
+    },
 }
 
 # ============================================================
@@ -537,6 +549,111 @@ COPA_2026_TIPS = [
     ),
 ]
 
+# ============================================================
+# MINES — VARIANTES DE SINAL
+# ============================================================
+MINES_CONFIGS = [
+    {"mines": 3,  "fields": 4, "exit": "4ª abertura"},
+    {"mines": 3,  "fields": 3, "exit": "3ª abertura"},
+    {"mines": 5,  "fields": 3, "exit": "3ª abertura"},
+    {"mines": 5,  "fields": 2, "exit": "2ª abertura"},
+    {"mines": 7,  "fields": 2, "exit": "2ª abertura"},
+    {"mines": 7,  "fields": 3, "exit": "3ª abertura"},
+    {"mines": 10, "fields": 2, "exit": "2ª abertura"},
+    {"mines": 3,  "fields": 5, "exit": "5ª abertura"},
+    {"mines": 5,  "fields": 4, "exit": "4ª abertura"},
+    {"mines": 12, "fields": 2, "exit": "2ª abertura"},
+]
+
+MINES_INTRO = [
+    "💣 Campo minado — entre com cuidado",
+    "💣 Janela identificada no Mines",
+    "💣 Configuração validada para entrar",
+    "💣 Movimento favorável no Mines agora",
+    "💣 Entrada liberada — siga a config",
+]
+
+MINES_CLOSING = [
+    "⚠️ Gestão primeiro. Operação sempre com controle.",
+    "⚠️ Nunca force campo além do indicado. Disciplina é lucro.",
+    "⚠️ Jogue com responsabilidade e respeite seu limite.",
+    "⚠️ Operação informativa. Use gestão e responsabilidade.",
+]
+
+# ============================================================
+# ROLETA — VARIANTES DE SINAL
+# ============================================================
+ROLETA_SIGNALS = [
+    {"entrada": "VERMELHO 🔴", "tipo": "Cor"},
+    {"entrada": "PRETO ⚫", "tipo": "Cor"},
+    {"entrada": "VERMELHO 🔴", "tipo": "Cor"},
+    {"entrada": "PRETO ⚫", "tipo": "Cor"},
+    {"entrada": "VERMELHO 🔴", "tipo": "Cor"},
+    {"entrada": "PRETO ⚫", "tipo": "Cor"},
+    {"entrada": "1ª DÚZIA (1–12) 🔢", "tipo": "Dúzia"},
+    {"entrada": "2ª DÚZIA (13–24) 🔢", "tipo": "Dúzia"},
+    {"entrada": "3ª DÚZIA (25–36) 🔢", "tipo": "Dúzia"},
+    {"entrada": "1ª COLUNA 📊", "tipo": "Coluna"},
+    {"entrada": "2ª COLUNA 📊", "tipo": "Coluna"},
+    {"entrada": "3ª COLUNA 📊", "tipo": "Coluna"},
+    {"entrada": "PAR (Even) 🔵", "tipo": "Par/Ímpar"},
+    {"entrada": "ÍMPAR (Odd) 🟠", "tipo": "Par/Ímpar"},
+    {"entrada": "BAIXO (1–18) ⬇️", "tipo": "Alto/Baixo"},
+    {"entrada": "ALTO (19–36) ⬆️", "tipo": "Alto/Baixo"},
+]
+
+ROLETA_STRATEGIES = [
+    "Bet fixa sem progressão",
+    "Flat bet — consistência acima de tudo",
+    "Bet conservadora — máx 2% da banca",
+    "Bet fixa — não dobrar após perda",
+]
+
+ROLETA_CLOSING = [
+    "⚠️ Nunca use Martingale na roleta. Bet fixa protege sua banca.",
+    "⚠️ Jogue com responsabilidade e respeite seu limite.",
+    "⚠️ Gestão primeiro. Sessões curtas = mais consistência.",
+    "⚠️ Operação informativa. Use gestão e responsabilidade.",
+]
+
+def build_mines_message(plan_date, position):
+    seed = f"{plan_date}|mines|{position}"
+    config = choose_variant(MINES_CONFIGS, seed + "|config")
+    intro = choose_variant(MINES_INTRO, seed + "|intro")
+    closing = choose_variant(MINES_CLOSING, seed + "|closing")
+    rounds = choose_variant([2, 2, 3, 3, 3], seed + "|rounds")
+    hora = now_br().strftime("%H:%M")
+
+    return (
+        f"{intro}\n\n"
+        f"🕐 {hora}\n"
+        f"⚙️ Minas: *{config['mines']}*\n"
+        f"📍 Abrir: *{config['fields']} campos*\n"
+        f"🚪 Saída: na *{config['exit']}*\n"
+        f"⏳ Válido: {rounds} rodadas\n\n"
+        f"💰 Gestão: máx 5% da banca por entrada\n\n"
+        f"{closing}"
+    )
+
+def build_roleta_message(plan_date, position):
+    seed = f"{plan_date}|roleta|{position}"
+    signal = choose_variant(ROLETA_SIGNALS, seed + "|signal")
+    strategy = choose_variant(ROLETA_STRATEGIES, seed + "|strategy")
+    closing = choose_variant(ROLETA_CLOSING, seed + "|closing")
+    rounds = choose_variant([2, 3, 3, 4], seed + "|rounds")
+    hora = now_br().strftime("%H:%M")
+
+    return (
+        f"🎡 *Sinal Roleta ao Vivo*\n\n"
+        f"🕐 {hora}\n"
+        f"🎯 Entrada: *{signal['entrada']}*\n"
+        f"📌 Tipo: {signal['tipo']}\n"
+        f"📊 Estratégia: {strategy}\n"
+        f"⏳ Válido: {rounds} rodadas\n\n"
+        f"💰 Gestão: 3% da banca por entrada\n\n"
+        f"{closing}"
+    )
+
 def fetch_todays_matches():
     today = today_str()
     url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={today}&s=Soccer"
@@ -996,8 +1113,12 @@ def scheduler_loop():
                             msg = build_aviator_message(item["plan_date"], item["position"])
                         elif room_name == "bacbo":
                             msg = build_bacbo_message(item["plan_date"], item["position"])
-                        else:
+                        elif room_name == "sports":
                             msg = build_sports_message(item["plan_date"], item["position"])
+                        elif room_name == "mines":
+                            msg = build_mines_message(item["plan_date"], item["position"])
+                        else:
+                            msg = build_roleta_message(item["plan_date"], item["position"])
 
                         ok, status = evolution_send(room_cfg["jid"], msg)
                         mark_sent(item["id"], "ok" if ok else "erro")
