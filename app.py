@@ -478,7 +478,7 @@ SPORTS_MARKETS = [
 SPORTS_CLOSING = [
     "⚠️ Analise antes de apostar. Gestão é o que separa o lucro do prejuízo.",
     "⚠️ Jogue com responsabilidade. Aposte só o que pode perder.",
-    "⚠️ Odd sugerida é referência. Verifique na sua plataforma.",
+    "⚠️ Odd é referência. Verifique na sua casa de apostas.",
     "⚠️ Gestão primeiro. Nunca ultrapasse 5% da banca por entrada.",
 ]
 
@@ -732,7 +732,7 @@ def build_sports_message(plan_date, position):
             f"🕐 {match_time} (horário de Brasília)\n\n"
             f"📌 Mercado: {market}\n"
             f"🎯 Entrada: {entry}\n"
-            f"📊 Odd sugerida: *{odd}* (Betano / Pixbet)\n"
+            f"📊 Odd de referência: *{odd}*\n"
             f"💰 Gestão: 3% da banca\n\n"
             f"{closing}"
         )
