@@ -1173,6 +1173,24 @@ ROOM_META = {
 def health():
     return "Bot WhatsApp Sinais — Rainha Games OK", 200
 
+@app.route("/rebuild/<room>")
+def rebuild_room(room):
+    if room not in ROOMS:
+        return jsonify({"error": "sala inválida"}), 400
+    try:
+        day = today_str()
+        conn = db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM wa_daily_plan WHERE room = %s AND plan_date = %s AND sent = 0", (room, day))
+        deleted = cur.rowcount
+        conn.commit()
+        cur.close()
+        conn.close()
+        ensure_daily_plan(room, day)
+        return jsonify({"ok": True, "room": room, "removidos": deleted, "msg": "Plano recriado a partir de agora"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/status")
 def status():
     try:
