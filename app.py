@@ -43,7 +43,12 @@ ROOMS = {
     },
     "sports": {
         "jid": os.getenv("SPORTS_JID", "120363428850704241@g.us"),
-        "windows": [("09:00", "09:25"), ("14:00", "14:25"), ("19:00", "19:25"), ("21:00", "21:25"), ("22:30", "22:55"), ("23:30", "23:55")],
+        "windows": [
+            ("09:00", "09:25"), ("10:30", "10:55"), ("12:00", "12:25"),
+            ("13:30", "13:55"), ("15:00", "15:25"), ("16:30", "16:55"),
+            ("18:00", "18:25"), ("19:30", "19:55"), ("21:00", "21:25"),
+            ("22:30", "22:55"), ("23:30", "23:55"),
+        ],
         "min_interval": 20,
         "max_interval": 25,
     },
@@ -735,8 +740,18 @@ def build_sports_message(plan_date, position):
     closing = choose_variant(SPORTS_CLOSING, seed + "|closing")
     hora = now_br().strftime("%H:%M")
 
-    events = fetch_todays_matches()
-    match = pick_best_match(events)
+    all_events = fetch_todays_matches()
+    # Ordenar por prioridade e ciclar pelo position
+    all_events_sorted = []
+    for lp in PRIORITY_LEAGUES:
+        for e in all_events:
+            if lp.lower() in (e.get("strLeague") or "").lower() and e not in all_events_sorted:
+                all_events_sorted.append(e)
+    for e in all_events:
+        if e not in all_events_sorted:
+            all_events_sorted.append(e)
+
+    match = all_events_sorted[position % len(all_events_sorted)] if all_events_sorted else None
 
     if match:
         home = match.get("strHomeTeam", "Casa")
