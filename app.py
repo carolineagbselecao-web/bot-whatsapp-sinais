@@ -1179,15 +1179,46 @@ def rebuild_room(room):
         return jsonify({"error": "sala inválida"}), 400
     try:
         day = today_str()
+        room_cfg = ROOMS[room]
         conn = db()
         cur = conn.cursor()
+
+        # Deletar plano do dia e recriar
         cur.execute("DELETE FROM wa_daily_plan WHERE room = %s AND plan_date = %s", (room, day))
         deleted = cur.rowcount
         conn.commit()
         cur.close()
         conn.close()
+
         ensure_daily_plan(room, day)
-        return jsonify({"ok": True, "room": room, "removidos": deleted, "msg": "Plano recriado a partir de agora"})
+
+        # Reagendar itens com send_at no passado para começar agora
+        conn = db()
+        cur = conn.cursor()
+        now_dt = now_br()
+        cur.execute("""
+            SELECT id FROM wa_daily_plan
+            WHERE room = %s AND plan_date = %s AND sent = 0
+              AND send_at <= %s
+            ORDER BY send_at ASC
+        """, (room, day, now_dt.strftime("%Y-%m-%d %H:%M:%S")))
+        past = cur.fetchall()
+
+        min_i = room_cfg["min_interval"]
+        for i, item in enumerate(past):
+            new_time = (now_dt + timedelta(minutes=min_i * (i + 1))).strftime("%Y-%m-%d %H:%M:%S")
+            cur.execute("UPDATE wa_daily_plan SET send_at = %s WHERE id = %s", (new_time, item["id"]))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "ok": True, "room": room,
+            "removidos": deleted,
+            "reagendados": len(past),
+            "msg": f"Plano recriado — {len(past)} sinais reagendados a partir de agora"
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
