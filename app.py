@@ -766,7 +766,9 @@ def build_sports_message(plan_date, position):
         if e not in all_events_sorted:
             all_events_sorted.append(e)
 
-    match = all_events_sorted[position % len(all_events_sorted)] if all_events_sorted else None
+    # Usar índice direto (sem módulo) — se não houver evento para essa posição, cai no Copa tip
+    idx = position - 1
+    match = all_events_sorted[idx] if all_events_sorted and idx < len(all_events_sorted) else None
 
     if match:
         home = match.get("strHomeTeam", "Casa")
