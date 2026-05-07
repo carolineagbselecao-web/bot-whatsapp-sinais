@@ -662,7 +662,7 @@ def build_mines_message(plan_date, position):
     intro = choose_variant(MINES_INTRO, seed + "|intro")
     closing = choose_variant(MINES_CLOSING, seed + "|closing")
     rounds = choose_variant([2, 2, 3, 3, 3], seed + "|rounds")
-    hora = now_br().strftime("%H:%M")
+    hora = (now_br() + timedelta(minutes=2)).strftime("%H:%M")
 
     return (
         f"{intro}\n\n"
@@ -681,7 +681,7 @@ def build_roleta_message(plan_date, position):
     strategy = choose_variant(ROLETA_STRATEGIES, seed + "|strategy")
     closing = choose_variant(ROLETA_CLOSING, seed + "|closing")
     rounds = choose_variant([2, 3, 3, 4], seed + "|rounds")
-    hora = now_br().strftime("%H:%M")
+    hora = (now_br() + timedelta(minutes=2)).strftime("%H:%M")
 
     return (
         f"🎡 *Sinal Roleta ao Vivo*\n\n"
@@ -1161,7 +1161,7 @@ def build_aviator_message(plan_date, position):
     seed = f"{plan_date}|aviator|{position}"
     signal = choose_variant(AVIATOR_SIGNALS, seed + "|signal")
     closing = choose_variant(AVIATOR_CLOSING, seed + "|closing")
-    hora = now_br().strftime("%H:%M")
+    hora = (now_br() + timedelta(minutes=2)).strftime("%H:%M")
 
     return (
         f"✈️ *Sinal Aviator*\n\n"
@@ -1177,7 +1177,7 @@ def build_bacbo_message(plan_date, position):
     pattern = choose_variant(BACBO_PATTERNS, seed + "|pattern")
     closing = choose_variant(BACBO_CLOSING, seed + "|closing")
     rounds = choose_variant(BACBO_ROUNDS, seed + "|rounds")
-    hora = now_br().strftime("%H:%M")
+    hora = (now_br() + timedelta(minutes=2)).strftime("%H:%M")
 
     return (
         f"🎲 *Sinal BacBo*\n\n"
